@@ -106,8 +106,9 @@ class Db private constructor(c: Context) : SQLiteOpenHelper(c, "shade.db", null,
     fun unsent(): Int = readableDatabase.rawQuery("SELECT COUNT(*) FROM events WHERE dirty > 0", null)
         .use { it.moveToFirst(); it.getInt(0) }
 
-    fun stats(days: Int): List<AppStat> {
-        val since = System.currentTimeMillis() - days * 86_400_000L
+    fun stats(days: Int): List<AppStat> = statsSince(System.currentTimeMillis() - days * 86_400_000L)
+
+    fun statsSince(since: Long): List<AppStat> {
         val sixH = System.currentTimeMillis() - 6 * 3_600_000L
         return readableDatabase.rawQuery("""SELECT pkg, MAX(app), MAX(channel_name), COUNT(*),
               SUM(outcome = 'opened'), SUM(outcome IN ('swiped', 'cleared')), SUM(outcome = 'app_removed'),
