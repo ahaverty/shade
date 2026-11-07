@@ -10,3 +10,4 @@ dist/
 .idea/
 *.iml
 .kotlin/
+__pycache__/
