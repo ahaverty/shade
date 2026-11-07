@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Shade server is on the home LAN (plain http, reachable at home or over WireGuard). -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.0.100</domain>
+    </domain-config>
+</network-security-config>
