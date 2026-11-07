@@ -26,8 +26,8 @@ android {
         minSdk = 31
         targetSdk = 35
         // A release = bump both and add a RELEASE_NOTES.md line.
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         buildConfigField("String", "SERVER_URL", secret("SERVER_URL"))
         buildConfigField("String", "SERVER_TOKEN", secret("SERVER_TOKEN"))
     }

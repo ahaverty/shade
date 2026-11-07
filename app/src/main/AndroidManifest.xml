@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- App names and "open this app's notification settings" for every app that notifies. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- Self-update from the latest GitHub release (Android asks before installing). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:allowBackup="false"
@@ -34,5 +36,6 @@
         </service>
 
         <receiver android:name=".DecisionReceiver" android:exported="false" />
+        <receiver android:name=".Updater$InstallStatus" android:exported="false" />
     </application>
 </manifest>

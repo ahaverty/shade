@@ -1,0 +1,60 @@
+name: Build APK
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: No secrets in the source
+        # Server addresses and tokens belong in the app's Settings or a local secrets.properties, never here.
+        run: |
+          if grep -rnE "Bearer [A-Za-z0-9_-]{16,}|shade-[A-Za-z0-9_-]{16,}|[0-9a-f]{32}\.access" app/src .github; then
+            echo "::error::Something that looks like a token is in the source."
+            exit 1
+          fi
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.SHADE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/shade.p12"
+            echo "SHADE_KEYSTORE=$RUNNER_TEMP/shade.p12" >> "$GITHUB_ENV"
+          fi
+      - name: Build
+        env:
+          SHADE_KEYSTORE_PASSWORD: ${{ secrets.SHADE_KEYSTORE_PASSWORD }}
+        run: |
+          gradle :app:testReleaseUnitTest :app:assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release*.apk shade.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shade-apk
+          path: shade.apk
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          code=$(grep -oP 'versionCode = \K\d+' app/build.gradle.kts)
+          name=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          notes=$(grep -m1 '^\*\*New in' RELEASE_NOTES.md | sed 's/\*\*//g; s/\[\([^]]*\)\]([^)]*)/\1/g')
+          jq -n --argjson c "$code" --arg n "$name" --arg t "$notes" '{versionCode: $c, versionName: $n, notes: $t}' > version.json
+          cat version.json
+          gh release create "$GITHUB_REF_NAME" shade.apk version.json --title "Shade $GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md

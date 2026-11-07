@@ -63,14 +63,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             val c = LocalContext.current
             MaterialTheme(colorScheme = if (isSystemInDarkTheme()) dynamicDarkColorScheme(c) else dynamicLightColorScheme(c)) {
-                Surface(Modifier.fillMaxSize()) { Home() }
+                Surface(Modifier.fillMaxSize()) { Home(install = intent?.action == Updater.ACTION_INSTALL) }
             }
         }
     }
 }
 
 @Composable
-private fun Home() {
+private fun Home(install: Boolean) {
     val c = LocalContext.current
     val prefs = remember { Prefs(c) }
     val scope = rememberCoroutineScope()
@@ -84,9 +84,12 @@ private fun Home() {
         owner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             tick++
             note = Sync.run(c, force = false)
+            Updater.check(c, force = false)
             tick++
         }
     }
+    LaunchedEffect(install) { if (install && Updater.available(c) != null) { note = "Downloading the update…"; note = Updater.install(c) } }
+    val update = remember(tick) { Updater.available(c) }
     val access = remember(tick) {
         NotificationManagerCompat.getEnabledListenerPackages(c).contains(c.packageName)
     }
@@ -110,6 +113,18 @@ private fun Home() {
                         c.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
                             .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, cn))
                     }) { Text("Open settings") }
+                }
+            }
+        }
+
+        update?.let { u ->
+            Card(Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Shade v${u.name} is ready", fontWeight = FontWeight.SemiBold)
+                        if (u.notes.isNotBlank()) Muted(u.notes)
+                    }
+                    Button(onClick = { note = "Downloading the update…"; scope.launch { note = Updater.install(c) } }) { Text("Install") }
                 }
             }
         }
@@ -187,7 +202,10 @@ private fun Home() {
             OutlinedTextField(url, { url = it }, Modifier.fillMaxWidth(), label = { Text("Server") }, singleLine = true)
             OutlinedTextField(token, { token = it }, Modifier.fillMaxWidth(), label = { Text("Token") }, singleLine = true)
             Button(onClick = { prefs.url = url; prefs.token = token; note = "Saved." }) { Text("Save") }
-            Muted("Shade ${BuildConfig.VERSION_NAME}")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Muted("Shade ${BuildConfig.VERSION_NAME}")
+                TextButton(onClick = { scope.launch { note = Updater.check(c, force = true) ?: ""; tick++ } }) { Text("Check for updates") }
+            }
         }
     }
 }
